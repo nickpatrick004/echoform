@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Echoform output
+output/
+frames/
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.mov
+
+# macOS
+.DS_Store

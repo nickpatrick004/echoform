@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echoform"
+version = "0.1.0"
+description = "An open-source audio visualizer rendering engine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Nick Patrick" }]
+dependencies = [
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    "tqdm>=4.66",
+]
+keywords = ["audio", "visualizer", "ffmpeg", "music", "video", "spectrum"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+
+[project.scripts]
+echoform = "echoform.engine:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

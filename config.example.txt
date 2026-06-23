@@ -1,0 +1,57 @@
+# Echoform example config
+# Copy this file to config.txt, then edit the audio/title/artist values.
+
+audio = song.mp3
+background = assets/themes/neon_valley/background.png
+output = output/echoform_visualizer.mp4
+
+# Branding/text overlay
+brand = Echoform
+channel_name = Audio Visualizer Engine
+title = Your Track Title
+artist = Your Artist Name
+
+# Render settings
+width = 1920
+height = 1080
+fps = 30
+preview_seconds = 15
+
+# Spectrum position/tuning
+center_x = 960
+center_y = 485
+inner_radius = 205
+bar_min = 2
+bar_max = 210
+bars = 144
+rotation_degrees = -90
+
+# Clean center/ring behavior
+stationary_inner_ring = 1
+draw_inner_dots = 0
+
+# Neon palette
+color_left = #ff1493
+color_mid = #b000ff
+color_right = #00a7ff
+text_color = #ffffff
+subtext_color = #ff4fc3
+
+# Audio response
+sensitivity = 0.38
+gain = 0.55
+smoothing = 0.90
+bass_boost = 0.75
+noise_floor = 0.05
+attack = 0.30
+release = 0.06
+
+# Scene cleanup
+particle_count = 90
+background_dim = 0.08
+frame_format = png
+
+# Output quality
+audio_mode = aac_high
+audio_bitrate = 320k
+video_crf = 16
