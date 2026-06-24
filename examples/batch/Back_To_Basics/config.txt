@@ -1,0 +1,13 @@
+# Example batch job. Put the audio file in this folder before rendering.
+audio = Back To Basics.mp3
+background = ../../../assets/themes/blue_gradient/blue_gradient_background.png
+output = output/back_to_basics.mp4
+
+brand = Echoform
+channel_name = Audio Visualizer Engine
+title = Back To Basics
+artist = MTLT
+
+youtube_tags = MTLT,music,visualizer,electronic,echoform
+youtube_privacy = private
+youtube_made_for_kids = 0

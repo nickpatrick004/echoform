@@ -28,6 +28,7 @@ classifiers = [
 
 [project.scripts]
 echoform = "echoform.engine:main"
+echoform-queue = "echoform.queue:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -66,6 +66,16 @@ class Config:
     video_crf: int = 18
     audio_bitrate: str = "320k"
     audio_mode: str = "aac_high"  # Always AAC-encodes final MP4 audio for reliable playback/YouTube compatibility
+
+    # YouTube/export metadata. These do not affect rendering. They are used by
+    # echoform-queue to generate upload-ready sidecar files.
+    youtube_title: str = ""
+    youtube_description: str = ""
+    youtube_tags: str = "music,visualizer,echoform"
+    youtube_category: str = "Music"
+    youtube_privacy: str = "private"
+    youtube_made_for_kids: int = 0
+
     stationary_inner_ring: int = 1
     draw_inner_dots: int = 0
     frame_format: str = "png"

@@ -1,0 +1,13 @@
+# Example batch job. Put the audio file in this folder before rendering.
+audio = Gonna Get It.mp3
+background = ../../../assets/themes/blue_gradient/blue_gradient_background.png
+output = output/gonna_get_it.mp4
+
+brand = Echoform
+channel_name = Audio Visualizer Engine
+title = Gonna Get It
+artist = MTLT
+
+youtube_tags = MTLT,music,visualizer,electronic,echoform
+youtube_privacy = private
+youtube_made_for_kids = 0
