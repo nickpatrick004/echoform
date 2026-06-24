@@ -16,3 +16,4 @@ frames/
 
 # macOS
 .DS_Store
+.venv/
