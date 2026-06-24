@@ -1,0 +1,16 @@
+{
+  "name": "Blue Gradient",
+  "description": "A simple neutral default theme for Echoform.",
+  "config": {
+    "background": "blue_gradient_background.png",
+    "visualizer": "radial_spectrum",
+    "color_left": "#5cc8ff",
+    "color_mid": "#7a5cff",
+    "color_right": "#c45cff",
+    "text_color": "#ffffff",
+    "subtext_color": "#7fd8ff",
+    "background_dim": "0.05",
+    "stationary_inner_ring": "1",
+    "draw_inner_dots": "0"
+  }
+}

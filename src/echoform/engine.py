@@ -24,6 +24,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Tuple, List
 
+from .theme import load_theme_file, normalize_theme_config, resolve_theme_path
+from .visualizers import get_visualizer
+
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageEnhance
 from tqdm import tqdm
@@ -33,6 +36,8 @@ from tqdm import tqdm
 class Config:
     audio: str = "song.wav"
     background: str = "background.png"
+    theme: str = ""
+    visualizer: str = "radial_spectrum"
     output: str = "output/echoform_visualizer.mp4"
     brand: str = "Echoform"
     channel_name: str = "Audio Visualizer Engine"
@@ -85,6 +90,7 @@ def parse_config(path: Path) -> Config:
     cfg = Config()
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
+
     raw: Dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -92,17 +98,18 @@ def parse_config(path: Path) -> Config:
             continue
         k, v = line.split("=", 1)
         raw[k.strip()] = v.strip().strip('"').strip("'")
-    for key, value in raw.items():
-        # Backward-compatible aliases from earlier guidance.
-        aliases = {
-            "base_radius": "inner_radius",
-            "bar_min_height": "bar_min",
-            "bar_max_height": "bar_max",
-        }
+
+    aliases = {
+        "base_radius": "inner_radius",
+        "bar_min_height": "bar_min",
+        "bar_max_height": "bar_max",
+    }
+
+    def apply_value(key: str, value: str, *, source: str) -> None:
         key = aliases.get(key, key)
         if not hasattr(cfg, key):
-            print(f"Warning: unknown config key ignored: {key}")
-            continue
+            print(f"Warning: unknown config key ignored from {source}: {key}")
+            return
         old = getattr(cfg, key)
         try:
             if isinstance(old, int):
@@ -113,6 +120,21 @@ def parse_config(path: Path) -> Config:
                 setattr(cfg, key, value)
         except ValueError as exc:
             raise ValueError(f"Invalid value for {key}: {value}") from exc
+
+    # Theme defaults are applied first. The song config then overrides them.
+    # This lets a future GUI choose a theme, then tune a single job without
+    # modifying the theme file.
+    theme_value = raw.get("theme", "").strip()
+    if theme_value:
+        theme_path = resolve_theme_path(path.parent, theme_value)
+        theme_config = normalize_theme_config(theme_path, load_theme_file(theme_path))
+        cfg.theme = str(theme_path)
+        for key, value in theme_config.items():
+            apply_value(key, value, source=f"theme {theme_path}")
+
+    for key, value in raw.items():
+        apply_value(key, value, source=str(path))
+
     return cfg
 
 
@@ -429,7 +451,8 @@ def render(cfg: Config, base_dir: Path, preview: bool) -> Path:
 
         print(f"Audio duration: {full_duration:.2f}s | Rendering: {duration:.2f}s | Frames: {total_frames}")
         base = prepare_background(bg_path, cfg)
-        particles = build_particles(cfg)
+        visualizer = get_visualizer(cfg.visualizer)
+        visualizer_state = visualizer.build_state(cfg)
         fft_size = 4096
         bins = build_bins(cfg.bars, fft_size, sr)
         norm = estimate_normalization(audio, sr, cfg.fps, fft_size, bins, cfg, total_frames)
@@ -444,7 +467,7 @@ def render(cfg: Config, base_dir: Path, preview: bool) -> Path:
             coeff = np.where(vals > smooth, cfg.attack, cfg.release).astype(np.float32)
             smooth = smooth + coeff * (vals - smooth)
             smooth = cfg.smoothing * smooth + (1.0 - cfg.smoothing) * vals
-            frame = draw_visualizer(base, smooth, i, total_frames, duration, cfg, particles)
+            frame = visualizer.draw_frame(base, smooth, i, total_frames, duration, cfg, visualizer_state)
             if cfg.frame_format.lower() == "png":
                 frame.save(frames_dir / f"frame_{i:06d}.png", compress_level=3)
             else:

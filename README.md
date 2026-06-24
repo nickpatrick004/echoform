@@ -1,144 +1,134 @@
 # Echoform
 
-Echoform is an open-source audio visualizer engine.
+Echoform is an open-source audio visualizer engine. It analyzes a music file, renders a visualizer over a theme background, and exports a YouTube-ready MP4 through FFmpeg.
 
-It takes an audio file, renders a circular spectrum visualizer over a themed background, and exports a YouTube-ready MP4 using FFmpeg.
+Echoform is intentionally CLI-first. A macOS or Windows app can later wrap the same engine without changing the rendering core.
 
-Echoform is intentionally CLI-first. The renderer can be used directly today, and the same engine can later be wrapped by a macOS app, Windows app, or other GUI without rewriting the rendering core.
+## Current Status
 
-## What Echoform Does
+Early engine prototype.
 
-Input:
+The current release includes:
 
-```text
-MP3 / WAV / M4A / MP4 audio
-```
+- Single-song rendering through `echoform`
+- Batch rendering through `echoform-queue`
+- YouTube upload sidecar metadata generation
+- A data-only theme system
+- A basic visualizer plugin registry
+- One built-in visualizer: `radial_spectrum`
 
-Output:
+Expect API/config changes before a stable 1.0 release.
 
-```text
-H.264 + AAC MP4 video
-YouTube upload metadata files
-```
+---
 
-Core workflow:
+# First-Time Setup
 
-```text
-Audio file
-  -> Echoform config
-  -> audio analysis
-  -> frame rendering
-  -> FFmpeg video export
-  -> YouTube sidecar metadata
-```
+## macOS
 
-## Features
-
-- Single-song rendering from a config file
-- Batch queue rendering from a folder of song configs
-- Circular FFT spectrum visualizer
-- Stationary inner ring by default
-- Configurable bar count, radius, gain, smoothing, colors, and text
-- PNG frame rendering to avoid intermediate JPEG artifacts
-- H.264 video output
-- AAC 320 kbps audio output by default
-- Preview mode for faster visual tuning
-- YouTube-ready sidecar metadata files
-- Apache-2.0 licensed engine
-
-## First-Time Setup on macOS
-
-Echoform includes a setup script that creates a clean virtual environment and installs the package in editable mode.
-
-### 1. Install FFmpeg and Python
+Install FFmpeg and Python:
 
 ```bash
 brew install ffmpeg python@3.12
 ```
 
-### 2. Clone the Repository
+Clone the repo:
 
 ```bash
 git clone https://github.com/nickpatrick004/echoform.git
 cd echoform
 ```
 
-### 3. Run the Setup Script
+Run setup:
 
 ```bash
 ./scripts/setup_macos.sh
 ```
 
-The script will:
+Activate later with:
+
+```bash
+source .venv/bin/activate
+```
+
+Verify:
+
+```bash
+echoform --help
+echoform-queue --help
+```
+
+## Windows
+
+Install FFmpeg:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+Install Python 3.12 from python.org or through winget.
+
+Clone the repo:
+
+```powershell
+git clone https://github.com/nickpatrick004/echoform.git
+cd echoform
+```
+
+Run setup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1
+```
+
+Activate later with:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Verify:
+
+```powershell
+echoform --help
+echoform-queue --help
+```
+
+---
+
+# Recommended Working Layout
+
+Keep the Echoform source repo separate from your music projects.
 
 ```text
-- verify FFmpeg is installed
-- find Python 3.10+
-- remove any old .venv
-- create a new .venv
-- install Echoform with pip install -e .
-- verify echoform and echoform-queue both work
+Echoform/                 # Git repo: source code only
+├── src/
+├── assets/
+├── scripts/
+└── README.md
+
+EchoformProjects/         # User projects: not in Git
+├── Back_To_Basics/
+├── Gonna_Get_It/
+└── ...
 ```
 
-### 4. Activate the Environment Later
+This keeps `git pull` safe and avoids accidentally committing songs, renders, thumbnails, or private themes.
 
-When you open a new terminal later, run:
+---
 
-```bash
-source .venv/bin/activate
-```
+# Single-Song Render
 
-Then commands should work normally:
-
-```bash
-echoform --help
-echoform-queue --help
-```
-
-## Manual Setup
-
-Use this only if the setup script fails or you want to see every step.
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
-python -c "import echoform; print(echoform.__file__)"
-echoform --help
-echoform-queue --help
-```
-
-The `-e` means editable install. It creates the `echoform` and `echoform-queue` commands while still allowing you to edit the source code.
-
-## Single-Song Render
-
-Use this when you want to render one track.
-
-### 1. Copy the Example Config
+Copy the example config:
 
 ```bash
 cp config.example.txt config.txt
 ```
 
-### 2. Put an Audio File in the Repo
+Edit `config.txt`:
 
-Example:
-
-```text
-echoform/
-├── song.mp3
-├── config.txt
-└── ...
-```
-
-### 3. Edit `config.txt`
-
-Minimum useful config:
-
-```text
+```ini
 audio = song.mp3
-background = assets/themes/blue_gradient/blue_gradient_background.png
+theme = assets/themes/blue_gradient/theme.json
 output = output/my_song.mp4
 
 title = My Song
@@ -147,368 +137,270 @@ brand = Echoform
 channel_name = Audio Visualizer Engine
 ```
 
-### 4. Render a Preview
+Render a preview:
 
 ```bash
 echoform --config config.txt --preview
 ```
 
-Preview output:
-
-```text
-output/my_song_preview.mp4
-```
-
-### 5. Render the Full Video
+Render the full video:
 
 ```bash
 echoform --config config.txt
 ```
 
-Full output:
+---
+
+# Batch Rendering
+
+A batch folder contains one folder per song. Each song folder has its own `config.txt`.
 
 ```text
-output/my_song.mp4
-```
-
-## Batch Queue Rendering
-
-Use this when you want Echoform to process several songs overnight.
-
-The queue system does not replace the engine. It sits above the engine and runs one normal Echoform config at a time.
-
-Recommended folder layout:
-
-```text
-batch/
+EchoformProjects/
 ├── Back_To_Basics/
-│   ├── Back To Basics.mp3
+│   ├── song.mp3
 │   └── config.txt
-├── Gonna_Get_It/
-│   ├── Gonna Get It.mp3
-│   └── config.txt
-└── Another_Song/
-    ├── Another Song.mp3
+└── Gonna_Get_It/
+    ├── song.mp3
     └── config.txt
 ```
 
-Each song has its own `config.txt`.
-
 Example song config:
 
-```text
-audio = Gonna Get It.mp3
-background = ../../../assets/themes/blue_gradient/blue_gradient_background.png
-output = output/gonna_get_it.mp4
+```ini
+audio = song.mp3
+theme = /absolute/path/to/Echoform/assets/themes/blue_gradient/theme.json
+output = output/Back_To_Basics.mp4
 
-title = Gonna Get It
+title = Back To Basics
 artist = MTLT
-brand = Echoform
+brand = MTLT
 channel_name = Music To Listen To
-
-youtube_tags = MTLT,music,visualizer,electronic,echoform
-youtube_privacy = private
-youtube_made_for_kids = 0
 ```
 
-### Preview Every Song in a Folder
+Preview all jobs:
 
 ```bash
-echoform-queue --folder batch --preview
+echoform-queue --folder ~/EchoformProjects --preview
 ```
 
-Or use the wrapper script, which activates `.venv` automatically:
+Render all jobs:
 
 ```bash
-./scripts/run_queue_preview.sh batch
+echoform-queue --folder ~/EchoformProjects
 ```
 
-### Render Every Song in a Folder
+Skip behavior:
+
+- Existing outputs are skipped by default.
+- Use `--force` to re-render.
+- Use `--dry-run` to list jobs without rendering.
+- Use `--stop-on-error` to halt on the first failed job.
 
 ```bash
-echoform-queue --folder batch
+echoform-queue --folder ~/EchoformProjects --dry-run
+echoform-queue --folder ~/EchoformProjects --force
 ```
 
-Or use the wrapper script:
+---
 
-```bash
-./scripts/run_queue_full.sh batch
+# YouTube Sidecar Output
+
+After each render, Echoform writes upload-ready metadata next to the video:
+
+```text
+output/
+├── My_Song.mp4
+├── My_Song.youtube_title.txt
+├── My_Song.youtube_description.txt
+├── My_Song.youtube_tags.txt
+└── My_Song.upload.json
 ```
 
-### Dry Run Without Rendering
+The JSON file is designed for a future YouTube uploader or desktop app.
 
-```bash
-echoform-queue --folder batch --dry-run
-```
+---
 
-### Re-render Existing Outputs
+# Theme System
 
-```bash
-echoform-queue --folder batch --force
-```
-
-### Stop on the First Failure
-
-```bash
-echoform-queue --folder batch --stop-on-error
-```
-
-By default, the queue keeps going if one song fails. That is useful for overnight renders.
-
-## Batch Output
-
-For each rendered video, Echoform writes YouTube sidecar files next to the MP4.
+Themes are data-only. They define default visual settings such as background, colors, and text colors.
 
 Example:
 
 ```text
-Back_To_Basics/output/
-├── back_to_basics.mp4
-├── back_to_basics.youtube_title.txt
-├── back_to_basics.youtube_description.txt
-├── back_to_basics.youtube_tags.txt
-└── back_to_basics.upload.json
+assets/themes/blue_gradient/
+├── theme.json
+└── blue_gradient_background.png
 ```
 
-The `.upload.json` file is designed for future automation.
-
-Example shape:
+Example `theme.json`:
 
 ```json
 {
-  "title": "Gonna Get It - MTLT",
-  "description": "...",
-  "tags": ["MTLT", "music", "visualizer"],
-  "category": "Music",
-  "privacy": "private",
-  "made_for_kids": false,
-  "video_file": "output/gonna_get_it.mp4",
-  "thumbnail_file": "output/gonna_get_it.thumbnail.png"
+  "name": "Blue Gradient",
+  "description": "A simple neutral default theme for Echoform.",
+  "config": {
+    "background": "blue_gradient_background.png",
+    "visualizer": "radial_spectrum",
+    "color_left": "#5cc8ff",
+    "color_mid": "#7a5cff",
+    "color_right": "#c45cff",
+    "text_color": "#ffffff",
+    "subtext_color": "#7fd8ff",
+    "stationary_inner_ring": "1",
+    "draw_inner_dots": "0"
+  }
 }
 ```
 
-Echoform does not upload directly to YouTube yet. It prepares the files a future uploader, desktop app, or manual upload process can use.
+A song config can use a theme:
 
-## YouTube Metadata Config Keys
-
-These keys are optional:
-
-```text
-youtube_title = 
-youtube_description = 
-youtube_tags = music,visualizer,echoform
-youtube_category = Music
-youtube_privacy = private
-youtube_made_for_kids = 0
+```ini
+theme = assets/themes/blue_gradient/theme.json
 ```
 
-If `youtube_title` is empty, Echoform uses:
+Song configs override theme defaults. This lets users pick a theme, then tune a single render without editing the theme.
+
+Private channel themes should live outside the public repo.
+
+---
+
+# Visualizer Plugins
+
+Visualizer plugins define how audio analysis is drawn.
+
+Built-in visualizers:
 
 ```text
-Title - Artist
+radial_spectrum
+radial
 ```
 
-If `youtube_description` is empty, Echoform generates a simple description from the song title, artist, and channel name.
+Select one in config:
 
-## Visual Tuning
-
-If the visualizer starts too aggressively:
-
-```text
-sensitivity = 0.30
-gain = 0.45
-bar_min = 1
+```ini
+visualizer = radial_spectrum
 ```
 
-If the bars do not have enough room to grow:
+The engine loads visualizers through `src/echoform/visualizers/__init__.py`.
 
-```text
-bar_max = 240
-bar_min = 1
+A visualizer module provides:
+
+```python
+def build_state(cfg):
+    ...
+
+
+def draw_frame(base, values, frame_idx, total_frames, duration, cfg, state):
+    ...
 ```
 
-If the movement is too jumpy:
+This separation allows future visualizers without rewriting the audio pipeline or batch queue.
 
-```text
-smoothing = 0.92
-attack = 0.25
-release = 0.05
-```
+Possible future visualizers:
 
-If you want the center geometry locked:
+- radial spectrum
+- horizontal bars
+- waveform tunnel
+- oscilloscope
+- lyric-reactive visualizer
+- particle field
+- album-art ring
 
-```text
+---
+
+# Configuration Reference
+
+Common options:
+
+```ini
+audio = song.mp3
+theme = assets/themes/blue_gradient/theme.json
+visualizer = radial_spectrum
+output = output/echoform_visualizer.mp4
+
+brand = Echoform
+channel_name = Audio Visualizer Engine
+title = Your Track Title
+artist = Your Artist Name
+
+inner_radius = 205
+bar_min = 2
+bar_max = 210
+bars = 144
+
 stationary_inner_ring = 1
 draw_inner_dots = 0
+
+sensitivity = 0.38
+gain = 0.55
+smoothing = 0.90
+bass_boost = 0.75
 ```
 
-## Audio Notes
+---
 
-Echoform decodes the source audio to temporary WAV files, then encodes the final MP4 audio as AAC.
+# Audio Notes
+
+Echoform decodes source audio to temporary WAV files, then encodes the final MP4 audio as AAC.
 
 Default:
 
-```text
+```ini
 audio_bitrate = 320k
 ```
 
-This avoids unreliable MP3-in-MP4 behavior and keeps preview and full renders on the same audio path.
+WAV is best when available. High-bitrate MP3 is acceptable, but artifacts already present in the MP3 cannot be removed by Echoform.
 
-For best quality, use WAV as the source when available. High-bitrate MP3 is acceptable, but artifacts already present in the MP3 cannot be removed by the renderer.
+---
 
-## Common Problems
+# Git Hygiene
 
-### Package requires Python >= 3.10
+Do not commit generated files or local project data.
 
-Check your Python version:
+Recommended `.gitignore` entries:
 
-```bash
-python --version
+```gitignore
+.venv/
+.DS_Store
+output/
+frames/
+batch/
+analysis/
+renders/
+thumbnails/
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.mov
 ```
 
-Create the virtual environment with Python 3.12:
+---
 
-```bash
-rm -rf .venv
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-```
-
-### ffmpeg not found
-
-Install FFmpeg:
-
-```bash
-brew install ffmpeg
-```
-
-Verify:
-
-```bash
-ffmpeg -version
-```
-
-### echoform or echoform-queue says ModuleNotFoundError: No module named 'echoform'
-
-Your console launcher is stale or the package was not installed into the active virtual environment. Re-run setup:
-
-```bash
-./scripts/setup_macos.sh
-source .venv/bin/activate
-```
-
-Temporary bypass:
-
-```bash
-PYTHONPATH=src python -m echoform.queue --folder batch --preview
-```
-
-### echoform command not found
-
-Activate the virtual environment:
-
-```bash
-source .venv/bin/activate
-```
-
-Then reinstall:
-
-```bash
-pip install -e .
-```
-
-Verify:
-
-```bash
-echoform --help
-```
-
-### echoform-queue found no jobs
-
-Make sure each song folder has a config file named one of:
-
-```text
-config.txt
-echoform.txt
-echoform.config.txt
-```
-
-Or specify the config filename:
-
-```bash
-echoform-queue --folder batch --config-name my-song-config.txt
-```
-
-## Project Layout
-
-```text
-echoform/
-├── assets/
-│   └── themes/
-│       └── blue_gradient/
-│           └── blue_gradient_background.png
-├── examples/
-│   ├── config.example.txt
-│   └── batch/
-│       ├── Back_To_Basics/
-│       │   └── config.txt
-│       └── Gonna_Get_It/
-│           └── config.txt
-├── scripts/
-├── src/
-│   └── echoform/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── engine.py
-│       ├── metadata.py
-│       └── queue.py
-├── config.example.txt
-├── LICENSE
-├── NOTICE
-├── pyproject.toml
-├── README.md
-└── requirements.txt
-```
-
-## App Wrapper Direction
-
-The current design keeps the renderer and queue usable from a future GUI.
-
-A macOS app can call the same engine functions or invoke the CLI commands:
-
-```text
-SwiftUI App
-  -> Echoform queue/job model
-  -> Echoform engine
-  -> FFmpeg
-  -> output files
-```
-
-A later Windows app can use the same model.
-
-The key rule is that the engine renders one config. The queue schedules many configs. The app should sit above both.
-
-## Roadmap
+# Roadmap
 
 Near-term:
 
+- Keep user projects outside the repo
+- Expand theme schema
+- Add more visualizer plugins
 - Save reusable `analysis.json`
 - Add thumbnail generation
-- Add public metadata providers for song pages
-- Add lyrics sidecar files
-- Improve theme packaging
+- Add metadata providers for public song pages
+- Improve queue resume/reporting
 
 Later:
 
-- GUI wrapper for macOS
+- macOS GUI wrapper
 - Windows GUI wrapper
 - YouTube upload helper
+- Lyrics overlays
 - Beat detection
-- Multiple visualizer modes
 - GPU renderer
 
-## License
+---
+
+# License
 
 Licensed under the Apache License, Version 2.0. See `LICENSE`.

@@ -1,9 +1,15 @@
 # Echoform example config
 # Copy this file to config.txt, then edit the audio/title/artist values.
 
+# Input/output
 audio = song.mp3
-background = assets/themes/blue_gradient/blue_gradient_background.png
+theme = assets/themes/blue_gradient/theme.json
+# background can override the theme background if needed.
+# background = assets/themes/blue_gradient/blue_gradient_background.png
 output = output/echoform_visualizer.mp4
+
+# Visualizer plugin
+visualizer = radial_spectrum
 
 # Branding/text overlay
 brand = Echoform
@@ -29,13 +35,6 @@ rotation_degrees = -90
 # Clean center/ring behavior
 stationary_inner_ring = 1
 draw_inner_dots = 0
-
-# Neon palette
-color_left = #ff1493
-color_mid = #b000ff
-color_right = #00a7ff
-text_color = #ffffff
-subtext_color = #ff4fc3
 
 # Audio response
 sensitivity = 0.38

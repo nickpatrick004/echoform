@@ -17,3 +17,6 @@ frames/
 # macOS
 .DS_Store
 .venv/
+
+# zip
+*.zip
