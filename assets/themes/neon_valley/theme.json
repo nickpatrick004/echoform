@@ -1,0 +1,16 @@
+{
+  "name": "Neon Valley Compatibility",
+  "description": "Compatibility alias for older Echoform configs. Uses the bundled default background with neon colors.",
+  "config": {
+    "background": "background.png",
+    "visualizer": "radial_spectrum",
+    "color_left": "#ff1493",
+    "color_mid": "#b000ff",
+    "color_right": "#00a7ff",
+    "text_color": "#ffffff",
+    "subtext_color": "#ff4fc3",
+    "background_dim": "0.08",
+    "stationary_inner_ring": "1",
+    "draw_inner_dots": "0"
+  }
+}

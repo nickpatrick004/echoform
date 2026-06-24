@@ -154,20 +154,114 @@ def require_ffmpeg() -> None:
         raise RuntimeError("FFmpeg is not installed or not in PATH. Install FFmpeg first.")
 
 
+def log(message: str) -> None:
+    print(message, flush=True)
+
+
 def run(cmd: List[str]) -> None:
-    print(" ".join(cmd))
-    subprocess.run(cmd, check=True)
+    """Run a subprocess while streaming output promptly to the GUI/terminal."""
+    log("$ " + " ".join(str(part) for part in cmd))
+    env = os.environ.copy()
+    env.setdefault("PYTHONUNBUFFERED", "1")
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        env=env,
+    )
+    assert process.stdout is not None
+    for line in process.stdout:
+        print(line, end="", flush=True)
+    rc = process.wait()
+    if rc != 0:
+        raise subprocess.CalledProcessError(rc, cmd)
+
+
+def echoform_home() -> Path:
+    """Return the active Echoform root without relying only on GUI env vars.
+
+    The GUI sets ECHOFORM_HOME, but copied commands and direct terminal runs may
+    omit it. In that case infer the repo/app root from this installed module:
+    <root>/src/echoform/engine.py.
+    """
+    env_home = os.environ.get("ECHOFORM_HOME")
+    if env_home:
+        return Path(env_home).expanduser().resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def _asset_suffix(path: Path) -> Path | None:
+    parts = path.parts
+    if "assets" not in parts:
+        return None
+    idx = parts.index("assets")
+    return Path(*parts[idx:])
+
+
+def _legacy_asset_fallback(suffix: Path) -> Path | None:
+    """Compatibility for old batch configs that refer to removed/renamed themes.
+
+    Early Echoform jobs often point at assets/themes/neon_valley/background.png.
+    The GUI starter bundle currently ships only the default blue_gradient theme.
+    Rather than fail, map the old background to the bundled default background.
+    """
+    normalized = suffix.as_posix()
+    home = echoform_home()
+    fallback_map = {
+        "assets/themes/neon_valley/background.png": "assets/themes/blue_gradient/blue_gradient_background.png",
+        "assets/themes/neon_valley/theme.json": "assets/themes/blue_gradient/theme.json",
+    }
+    mapped = fallback_map.get(normalized)
+    if mapped:
+        candidate = (home / mapped).resolve()
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def resolve(base: Path, p: str) -> Path:
-    path = Path(p)
-    return path if path.is_absolute() else base / path
+    """Resolve user/config paths with repo/app-aware fallbacks."""
+    path = Path(p).expanduser()
+    home = echoform_home()
+
+    if not path.is_absolute():
+        candidate = (base / path).resolve()
+        if candidate.exists():
+            return candidate
+
+        home_candidate = (home / path).resolve()
+        if home_candidate.exists():
+            return home_candidate
+
+        suffix = _asset_suffix(path)
+        if suffix:
+            fallback = _legacy_asset_fallback(suffix)
+            if fallback:
+                return fallback
+        return candidate
+
+    if path.exists():
+        return path
+
+    suffix = _asset_suffix(path)
+    if suffix:
+        home_candidate = (home / suffix).resolve()
+        if home_candidate.exists():
+            return home_candidate
+        fallback = _legacy_asset_fallback(suffix)
+        if fallback:
+            return fallback
+
+    return path
 
 
 def decode_audio_to_wav(audio_path: Path, wav_path: Path, channels: int = 1, duration: float | None = None) -> None:
-    cmd = ["ffmpeg", "-y", "-i", str(audio_path)]
+    cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-y"]
     if duration is not None:
         cmd += ["-t", f"{duration:.3f}"]
+    cmd += ["-i", str(audio_path)]
     cmd += [
         "-vn", "-ac", str(channels), "-ar", "48000", "-sample_fmt", "s16",
         "-af", "aresample=async=1:first_pts=0",
@@ -438,30 +532,41 @@ def render(cfg: Config, base_dir: Path, preview: bool) -> Path:
 
     with tempfile.TemporaryDirectory(prefix="echoform_") as tmp:
         tmp_path = Path(tmp)
+        if preview:
+            out_path = out_path.with_name(out_path.stem + "_preview" + out_path.suffix)
+
+        log(f"Resolved audio: {audio_path}")
+        log(f"Resolved background: {bg_path}")
+        log(f"Output target: {out_path}")
         wav_path = tmp_path / "audio_48k_mono.wav"
-        decode_audio_to_wav(audio_path, wav_path, channels=1)
+        analysis_duration = float(cfg.preview_seconds) if preview else None
+        log("Decoding analysis audio...")
+        decode_audio_to_wav(audio_path, wav_path, channels=1, duration=analysis_duration)
+        log("Loading decoded audio...")
         audio, sr = load_wav_mono(wav_path)
         full_duration = len(audio) / sr
         duration = min(full_duration, float(cfg.preview_seconds)) if preview else full_duration
         total_frames = max(1, int(duration * cfg.fps))
         mux_audio_path = tmp_path / "mux_audio_48k_stereo.wav"
+        log("Decoding mux audio...")
         decode_audio_to_wav(audio_path, mux_audio_path, channels=2, duration=duration)
-        if preview:
-            out_path = out_path.with_name(out_path.stem + "_preview" + out_path.suffix)
 
-        print(f"Audio duration: {full_duration:.2f}s | Rendering: {duration:.2f}s | Frames: {total_frames}")
+        log(f"Audio duration: {full_duration:.2f}s | Rendering: {duration:.2f}s | Frames: {total_frames}")
+        log("Preparing background...")
         base = prepare_background(bg_path, cfg)
         visualizer = get_visualizer(cfg.visualizer)
         visualizer_state = visualizer.build_state(cfg)
         fft_size = 4096
         bins = build_bins(cfg.bars, fft_size, sr)
+        log("Estimating visualizer normalization...")
         norm = estimate_normalization(audio, sr, cfg.fps, fft_size, bins, cfg, total_frames)
-        print(f"Visualizer normalization: {norm:.4f}")
+        log(f"Visualizer normalization: {norm:.4f}")
         frames_dir = tmp_path / "frames"
         frames_dir.mkdir()
         smooth = np.zeros(cfg.bars, dtype=np.float32)
 
-        for i in tqdm(range(total_frames), desc="Rendering frames"):
+        log("Rendering frames...")
+        for i in tqdm(range(total_frames), desc="Rendering frames", file=sys.stdout, mininterval=0.5):
             vals = analyze_frame(audio, sr, i, cfg.fps, fft_size, bins, cfg, norm)
             # Separate attack/release makes quiet sections calm while loud hits can still grow.
             coeff = np.where(vals > smooth, cfg.attack, cfg.release).astype(np.float32)
@@ -477,7 +582,7 @@ def render(cfg: Config, base_dir: Path, preview: bool) -> Path:
         # This avoids MP3-in-MP4 compatibility problems and fixes the silent preview/full bug from v4.
         frame_pattern = "frame_%06d.png" if cfg.frame_format.lower() == "png" else "frame_%06d.jpg"
         cmd = [
-            "ffmpeg", "-y",
+            "ffmpeg", "-hide_banner", "-nostdin", "-y",
             "-framerate", str(cfg.fps), "-i", str(frames_dir / frame_pattern),
             "-i", str(mux_audio_path),
             "-t", f"{duration:.3f}",
@@ -489,8 +594,9 @@ def render(cfg: Config, base_dir: Path, preview: bool) -> Path:
             "-shortest", "-movflags", "+faststart",
             str(out_path),
         ]
+        log("Encoding final video...")
         run(cmd)
-        print(f"Created: {out_path}")
+        log(f"Created: {out_path}")
         return out_path
 
 

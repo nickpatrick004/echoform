@@ -16,6 +16,7 @@ The current release includes:
 - A data-only theme system
 - A basic visualizer plugin registry
 - One built-in visualizer: `radial_spectrum`
+- A starter macOS SwiftUI wrapper under `macos/EchoformGUI`
 
 Expect API/config changes before a stable 1.0 release.
 
@@ -201,6 +202,61 @@ Skip behavior:
 echoform-queue --folder ~/EchoformProjects --dry-run
 echoform-queue --folder ~/EchoformProjects --force
 ```
+
+---
+
+# macOS GUI Wrapper
+
+A starter SwiftUI wrapper lives in:
+
+```text
+macos/EchoformGUI/
+```
+
+It does not replace the Python engine. It launches the same commands the CLI uses:
+
+```bash
+python -m echoform.engine --config /path/to/config.txt --preview
+python -m echoform.queue --folder /path/to/batch --preview
+```
+
+Run it from the repo root on macOS:
+
+```bash
+./scripts/run_gui_macos.sh
+```
+
+Or open the Swift package in Xcode:
+
+```bash
+open macos/EchoformGUI/Package.swift
+```
+
+If the GUI fails to build, run this from the repo root and copy the terminal output:
+
+```bash
+cd macos/EchoformGUI
+swift build
+```
+
+The wrapper currently supports:
+
+- Choosing the Echoform engine repo folder
+- Single-song render by choosing a config file
+- Batch render by choosing a batch folder
+- Preview, force, dry-run, and stop-on-error options
+- Live combined stdout/stderr output from the renderer
+- A clear Result section after render completion
+- Open Video and Reveal in Finder buttons for detected MP4 outputs
+- Copy Path, Copy Output, and copyable command preview for debugging
+
+The GUI expects the Python environment to already be set up. Run this first if needed:
+
+```bash
+./scripts/setup_macos.sh
+```
+
+FFmpeg must also be installed and available through Homebrew or the system path.
 
 ---
 
@@ -404,3 +460,76 @@ Later:
 # License
 
 Licensed under the Apache License, Version 2.0. See `LICENSE`.
+
+## macOS GUI Runtime Direction
+
+The GUI now works toward a bundled-runtime model.
+
+Runtime priority:
+
+1. Bundled runtime inside the app resources:
+
+```text
+EchoformGUI.app/Contents/Resources/Runtime/venv/bin/python
+```
+
+2. App-managed development runtime:
+
+```text
+<engine-root>/.echoform-runtime/venv/bin/python
+```
+
+The GUI no longer falls back to random system Python for rendering. If no runtime is available, the **Render** button stays disabled and the Runtime panel shows **Prepare Runtime**.
+
+### Development setup from the GUI
+
+Open the GUI, choose the engine root, then click:
+
+```text
+Prepare Runtime
+```
+
+The GUI will run:
+
+```bash
+python3 -m venv .echoform-runtime/venv
+.echoform-runtime/venv/bin/python -m pip install --upgrade pip
+.echoform-runtime/venv/bin/pip install -r requirements.txt
+```
+
+It also checks that FFmpeg is available on PATH.
+
+### Build a bundled runtime for packaging tests
+
+```bash
+./scripts/build_macos_runtime.sh
+cd macos/EchoformGUI
+swift build
+swift run EchoformGUI
+```
+
+This creates a runtime under:
+
+```text
+macos/EchoformGUI/Sources/EchoformGUI/Resources/Runtime/venv
+```
+
+That directory is ignored by Git because it is machine-generated and large.
+
+For a polished release, build the bundled runtime on a clean Mac, keep dependency versions pinned, then copy the prepared runtime into the app bundle during packaging/signing.
+
+
+### GUI asset path repair
+
+The macOS GUI sets `ECHOFORM_HOME` to the active Echoform engine root before rendering.
+This lets older batch configs with stale absolute paths such as:
+
+```text
+/Users/.../Echoform/assets/themes/...
+```
+
+resolve against the current app/repo copy instead of failing after the project is moved.
+
+### GUI render diagnostics
+
+The macOS GUI now runs FFmpeg with `-nostdin` and limits preview audio decoding to the configured preview duration. This prevents FFmpeg from blocking while waiting for stdin and avoids decoding an entire source file before a short preview render.
