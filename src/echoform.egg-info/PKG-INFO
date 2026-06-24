@@ -1,3 +1,26 @@
+Metadata-Version: 2.4
+Name: echoform
+Version: 0.1.0
+Summary: An open-source audio visualizer rendering engine.
+Author: Nick Patrick
+License: Apache-2.0
+Keywords: audio,visualizer,ffmpeg,music,video,spectrum
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Multimedia :: Video
+Classifier: Topic :: Multimedia :: Sound/Audio :: Analysis
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: NOTICE
+Requires-Dist: numpy>=1.24
+Requires-Dist: Pillow>=10.0
+Requires-Dist: tqdm>=4.66
+Dynamic: license-file
+
 # Echoform
 
 Echoform is an open-source audio visualizer engine.

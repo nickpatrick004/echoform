@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-echoform-queue --folder examples/batch --preview
+cd "$(dirname "$0")/.."
+if [[ -f .venv/bin/activate ]]; then
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
+fi
+echoform-queue --folder "${1:-batch}" --preview

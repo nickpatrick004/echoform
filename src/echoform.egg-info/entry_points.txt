@@ -1,0 +1,3 @@
+[console_scripts]
+echoform = echoform.engine:main
+echoform-queue = echoform.queue:main
